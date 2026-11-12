@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Paint Studio</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap">
+<style>
+/* Layout: an easel. Paint-pot palette and tools on a wooden shelf above, a big paper canvas below. */
+:root{
+  --wall:#e9e4f7; --shelf:#c98f5a; --shelf-dark:#9c6a3e; --paper:#ffffff; --ink:#2d2a3e; --soft:#6d6886;
+  --btn:#fffaf2; --btn-edge:#d9c8ae; --sel:#2d2a3e; --danger:#d9483b;
+  --display:"Fredoka","Trebuchet MS",system-ui,sans-serif;
+  color-scheme:light;
+}
+[hidden]{display:none!important}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%}
+body{background:var(--wall);color:var(--ink);font-family:var(--display);font-size:18px;
+  padding:max(10px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));
+  -webkit-user-select:none;user-select:none;touch-action:manipulation;-webkit-text-size-adjust:100%;overscroll-behavior:none;
+  display:flex;flex-direction:column;gap:10px}
+button{font:inherit;color:inherit;border:0;cursor:pointer;touch-action:manipulation}
+button:focus-visible,a:focus-visible{outline:4px solid var(--sel);outline-offset:2px}
+.shelf{background:var(--shelf);border-radius:20px;box-shadow:0 6px 0 var(--shelf-dark);padding:10px 12px;display:flex;flex-direction:column;gap:10px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.row .sp{flex:1}
+.home{color:#fff;text-decoration:none;font-weight:600;font-size:17px;padding:6px 4px}
+.title{color:#fff;font-weight:700;font-size:24px}
+.swatch{width:50px;height:50px;border-radius:50%;background:var(--c);box-shadow:inset 0 -5px 0 rgba(0,0,0,.18),0 3px 0 var(--shelf-dark);border:4px solid #fff}
+.swatch.on{outline:5px solid var(--sel);outline-offset:1px}
+.tool{min-width:62px;height:56px;border-radius:16px;background:var(--btn);box-shadow:0 4px 0 var(--btn-edge);display:flex;align-items:center;justify-content:center;gap:6px;padding:0 12px;font-weight:600;font-size:18px}
+.tool .i{font-size:28px;line-height:1}
+.tool:active{transform:translateY(3px);box-shadow:0 1px 0 var(--btn-edge)}
+.tool.on{background:var(--sel);color:#fff;box-shadow:0 4px 0 #000}
+.tool.danger{background:var(--danger);color:#fff;box-shadow:0 4px 0 #9e2f25}
+.size{width:56px}
+.dot{border-radius:50%;background:currentColor;display:block}
+.stamps{background:var(--btn);border-radius:16px;padding:8px;display:flex;gap:6px;flex-wrap:wrap}
+.stamp{width:56px;height:56px;border-radius:12px;font-size:34px;line-height:1;background:transparent}
+.stamp.on{background:var(--wall);outline:4px solid var(--sel)}
+.easel{flex:1;min-height:0;display:flex;align-items:center;justify-content:center}
+canvas{background:var(--paper);border-radius:14px;box-shadow:0 6px 0 rgba(0,0,0,.12);touch-action:none;display:block;max-width:100%}
+.overlay{position:fixed;inset:0;background:rgba(30,26,50,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:max(16px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));z-index:20;color:#fff;text-align:center}
+.overlay img{max-width:100%;max-height:68vh;border-radius:12px;background:#fff;-webkit-touch-callout:default;-webkit-user-select:auto;user-select:auto}
+.overlay p{margin:0;font-size:20px;max-width:34ch}
+@media (max-width:700px){.swatch{width:40px;height:40px}.tool{min-width:52px;height:50px;padding:0 8px}.tool .lbl{display:none}}
+</style>
+</head>
+<body>
+<div class="shelf">
+  <div class="row">
+    <a class="home" href="index.html">◀ All games</a>
+    <span class="title">Paint Studio</span>
+    <div class="sp"></div>
+    <button class="tool" id="undoBtn" aria-label="Undo"><span class="i">↩️</span><span class="lbl">Undo</span></button>
+    <button class="tool" id="clearBtn" aria-label="Start over"><span class="i">🗑️</span><span class="lbl" id="clearLbl">New</span></button>
+    <button class="tool" id="saveBtn" aria-label="Save picture"><span class="i">💾</span><span class="lbl">Save</span></button>
+  </div>
+  <div class="row" id="colors" aria-label="Colors"></div>
+  <div class="row">
+    <button class="tool on" data-tool="brush"><span class="i">🖌️</span><span class="lbl">Brush</span></button>
+    <button class="tool" data-tool="rainbow"><span class="i">🌈</span><span class="lbl">Rainbow</span></button>
+    <button class="tool" data-tool="stamp"><span class="i">⭐</span><span class="lbl">Stamps</span></button>
+    <button class="tool" data-tool="eraser"><span class="i">🧽</span><span class="lbl">Eraser</span></button>
+    <button class="tool" data-tool="fill"><span class="i">🪣</span><span class="lbl">Paint the paper</span></button>
+    <div class="sp"></div>
+    <button class="tool size" data-size="8" aria-label="Thin"><span class="dot" style="width:8px;height:8px"></span></button>
+    <button class="tool size on" data-size="20" aria-label="Medium"><span class="dot" style="width:18px;height:18px"></span></button>
+    <button class="tool size" data-size="42" aria-label="Thick"><span class="dot" style="width:30px;height:30px"></span></button>
+  </div>
+  <div class="stamps" id="stamps" hidden></div>
+</div>
+<div class="easel" id="easel"><canvas id="cv" width="1200" height="900" aria-label="Drawing paper"></canvas></div>
+
+<div class="overlay" id="overlay" hidden>
+  <img id="savedImg" alt="Your picture">
+  <p id="saveTip">On iPad: press and hold the picture, then tap <b>Save to Photos</b>.</p>
+  <div class="row" style="justify-content:center">
+    <a class="tool" id="dlLink" download="my-picture.png" style="text-decoration:none;color:var(--ink)">⬇️ Download</a>
+    <button class="tool" id="closeBtn">Back to painting</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const cv = $('cv'), ctx = cv.getContext('2d');
+  const W = cv.width, H = cv.height;
+  const COLORS = ['#e63946','#f77f00','#fcbf49','#2a9d8f','#52b788','#4361ee','#7209b7','#f15bb5','#8d5524','#1d1d1d','#ffffff'];
+  const STAMPS = ['⭐','❤️','🌸','🦖','🚀','🐱','🌈','☀️','🦋','🍩','🐟','👑'];
+  let color = COLORS[5], size = 20, tool = 'brush', stamp = STAMPS[0], hue = 0;
+  let paper = '#ffffff';
+  const undo = [];
+
+  // palette
+  COLORS.forEach((c, i) => {
+    const b = document.createElement('button'); b.className = 'swatch' + (c === color ? ' on' : ''); b.style.setProperty('--c', c);
+    b.setAttribute('aria-label', 'Color ' + (i+1));
+    b.addEventListener('click', () => { color = c; document.querySelectorAll('.swatch').forEach(s => s.classList.toggle('on', s === b)); if(tool === 'eraser' || tool === 'rainbow') setTool('brush') });
+    $('colors').append(b);
+  });
+  STAMPS.forEach(s => {
+    const b = document.createElement('button'); b.className = 'stamp' + (s === stamp ? ' on' : ''); b.textContent = s;
+    b.addEventListener('click', () => { stamp = s; document.querySelectorAll('.stamp').forEach(x => x.classList.toggle('on', x === b)) });
+    $('stamps').append(b);
+  });
+  function setTool(t){
+    tool = t;
+    document.querySelectorAll('[data-tool]').forEach(b => b.classList.toggle('on', b.dataset.tool === t));
+    $('stamps').hidden = t !== 'stamp'; fit();
+  }
+  document.querySelectorAll('[data-tool]').forEach(b => b.addEventListener('click', () => {
+    if(b.dataset.tool === 'fill'){ snapshot(); paper = color; syncPaper(); autosave(); return }
+    setTool(b.dataset.tool);
+  }));
+  document.querySelectorAll('[data-size]').forEach(b => b.addEventListener('click', () => { size = +b.dataset.size; document.querySelectorAll('[data-size]').forEach(x => x.classList.toggle('on', x === b)) }));
+
+  // canvas sizing: keep 4:3, fit inside the easel
+  function fit(){
+    const e = $('easel'); const aw = e.clientWidth, ah = Math.max(240, window.innerHeight - e.getBoundingClientRect().top - 14);
+    let w = aw, h = aw * 3/4;
+    if(h > ah){ h = ah; w = ah * 4/3 }
+    cv.style.width = Math.floor(w) + 'px'; cv.style.height = Math.floor(h) + 'px';
+  }
+  window.addEventListener('resize', fit);
+
+  function blank(){ ctx.save(); ctx.globalCompositeOperation = 'source-over'; ctx.clearRect(0,0,W,H); ctx.restore() }
+
+  // undo
+  function snapshot(){ try{ undo.push({img: ctx.getImageData(0,0,W,H), paper}); if(undo.length > 10) undo.shift() }catch(e){} }
+  $('undoBtn').addEventListener('click', () => { const s = undo.pop(); if(!s) return; ctx.putImageData(s.img, 0, 0); paper = s.paper; syncPaper(); autosave() });
+
+  // drawing (strokes go on a transparent canvas; paper color sits behind via CSS + on export)
+  function pos(ev){ const r = cv.getBoundingClientRect(); return {x:(ev.clientX - r.left) * W / r.width, y:(ev.clientY - r.top) * H / r.height} }
+  let drawing = false, last = null, pid = null;
+  function strokeTo(p){
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    const scale = W / cv.getBoundingClientRect().width;
+    ctx.lineWidth = size * scale;
+    if(tool === 'eraser'){ ctx.globalCompositeOperation = 'destination-out'; ctx.strokeStyle = '#000' }
+    else { ctx.globalCompositeOperation = 'source-over'; ctx.strokeStyle = tool === 'rainbow' ? `hsl(${hue = (hue + 4) % 360} 90% 55%)` : color }
+    ctx.beginPath(); ctx.moveTo(last.x, last.y); ctx.lineTo(p.x, p.y); ctx.stroke();
+    ctx.globalCompositeOperation = 'source-over';
+    last = p;
+  }
+  cv.addEventListener('pointerdown', ev => {
+    if(pid !== null) return;
+    ev.preventDefault();
+    const p = pos(ev);
+    if(tool === 'stamp'){
+      snapshot();
+      const px = {8:80, 20:135, 42:210}[size] || 180;
+      ctx.font = px + 'px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(stamp, p.x, p.y);
+      pop(); autosave(); return;
+    }
+    snapshot(); drawing = true; pid = ev.pointerId; last = p;
+    try{ cv.setPointerCapture(ev.pointerId) }catch(e){}
+    strokeTo({x:p.x + .1, y:p.y + .1});
+  });
+  cv.addEventListener('pointermove', ev => {
+    if(!drawing || ev.pointerId !== pid) return;
+    const evs = ev.getCoalescedEvents ? ev.getCoalescedEvents() : [ev];
+    (evs.length ? evs : [ev]).forEach(e => strokeTo(pos(e)));
+  });
+  const end = ev => { if(ev.pointerId !== pid) return; drawing = false; pid = null; autosave() };
+  cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
+
+  // sound for stamps
+  let ac=null;
+  function pop(){ try{ ac = ac || new (window.AudioContext||window.webkitAudioContext)(); if(ac.state==='suspended') ac.resume(); const o=ac.createOscillator(),g=ac.createGain(),s=ac.currentTime; o.type='sine'; o.frequency.setValueAtTime(500,s); o.frequency.exponentialRampToValueAtTime(1200,s+.1); g.gain.setValueAtTime(.15,s); g.gain.exponentialRampToValueAtTime(.001,s+.15); o.connect(g).connect(ac.destination); o.start(s); o.stop(s+.17) }catch(e){} }
+
+  // paper color is the canvas background; strokes stay on a transparent layer
+  // export with the paper color behind
+  function exportPNG(){
+    const out = document.createElement('canvas'); out.width = W; out.height = H;
+    const o = out.getContext('2d'); o.fillStyle = paper; o.fillRect(0,0,W,H); o.drawImage(cv,0,0);
+    return out.toDataURL('image/png');
+  }
+  // keep the paper color visible behind the transparent strokes
+  const syncPaper = () => cv.style.background = paper;
+
+  // clear with a second tap to confirm
+  let clearArmed = null;
+  $('clearBtn').addEventListener('click', () => {
+    if(!clearArmed){
+      $('clearBtn').classList.add('danger'); $('clearLbl').textContent = 'Tap again';
+      clearArmed = setTimeout(() => { clearArmed = null; $('clearBtn').classList.remove('danger'); $('clearLbl').textContent = 'New' }, 3000);
+      return;
+    }
+    clearTimeout(clearArmed); clearArmed = null; $('clearBtn').classList.remove('danger'); $('clearLbl').textContent = 'New';
+    snapshot(); blank(); paper = '#ffffff'; syncPaper(); autosave();
+  });
+
+  $('saveBtn').addEventListener('click', () => {
+    const url = exportPNG();
+    $('savedImg').src = url; $('dlLink').href = url; $('overlay').hidden = false;
+  });
+  $('closeBtn').addEventListener('click', () => $('overlay').hidden = true);
+
+  // autosave so a picture survives closing the page
+  let saveT;
+  function autosave(){ clearTimeout(saveT); saveT = setTimeout(() => { try{ localStorage.setItem('paint-pic', cv.toDataURL('image/png')); localStorage.setItem('paint-paper', paper) }catch(e){} }, 600) }
+  try{
+    const p = localStorage.getItem('paint-paper'); if(p) paper = p;
+    const d = localStorage.getItem('paint-pic');
+    if(d){ const img = new Image(); img.onload = () => ctx.drawImage(img,0,0); img.src = d }
+  }catch(e){}
+  syncPaper(); fit();
+})();
+</script>
+</body>
+</html>

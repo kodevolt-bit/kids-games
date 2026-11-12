@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Habitat Sort</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@700;800&display=swap">
+<style>
+/* Layout: a field-guide desk. The animal card sits in the middle, the five homes line up below like map tiles that fill with animals. */
+:root{
+  --paper:#f6f1e3; --paper-2:#ece3cc; --card:#fffdf6; --ink:#2e3b2f; --soft:#5f6d5c; --edge:#d6c9a8;
+  --leaf:#3f8f5a; --leaf-dark:#2c6b42; --no:#d4513f; --gold:#f2b632;
+  --display:"Fredoka","Nunito","Trebuchet MS",system-ui,sans-serif;
+  --body:"Nunito","Trebuchet MS",system-ui,sans-serif;
+  color-scheme:light;
+}
+[hidden]{display:none!important}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;min-height:100%}
+body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:18px;
+  padding:max(12px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(18px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));
+  -webkit-user-select:none;user-select:none;touch-action:manipulation;-webkit-text-size-adjust:100%}
+button{font:inherit;color:inherit;border:0;cursor:pointer;touch-action:manipulation}
+button:focus-visible,a:focus-visible{outline:4px solid var(--ink);outline-offset:3px}
+h1,h2,h3{font-family:var(--display);margin:0;line-height:1.05;text-wrap:balance}
+.wrap{max-width:1150px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+.home{color:var(--soft);font-weight:800;text-decoration:none;align-self:flex-start;padding:6px 0}
+.btn{border-radius:18px;padding:12px 22px;font-family:var(--display);font-weight:600;font-size:22px;background:var(--leaf);color:#fff;box-shadow:0 5px 0 var(--leaf-dark);min-height:58px}
+.btn:active{transform:translateY(4px);box-shadow:0 1px 0 var(--leaf-dark)}
+.btn.small{min-height:48px;padding:6px 16px;font-size:19px}
+.btn.ghost{background:var(--card);color:var(--ink);box-shadow:0 5px 0 var(--edge)}
+.pill{background:var(--card);border-radius:999px;padding:6px 16px;font-family:var(--display);font-weight:600;font-size:21px;box-shadow:0 3px 0 var(--edge)}
+.bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.bar .sp{flex:1}
+.panel{background:var(--card);border-radius:28px;padding:24px;display:flex;flex-direction:column;gap:18px;box-shadow:0 6px 0 var(--edge)}
+.hero{display:flex;gap:20px;align-items:center;flex-wrap:wrap}
+.hero .big{font-size:84px;line-height:1}
+.hero h1{font-size:clamp(40px,6vw,64px);color:var(--leaf-dark)}
+.hero p{margin:6px 0 0;color:var(--soft);font-weight:800;max-width:44ch}
+.modes{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.mode{border-radius:22px;padding:18px;text-align:left;background:var(--paper-2);box-shadow:0 5px 0 var(--edge);display:flex;flex-direction:column;gap:6px;min-height:130px}
+.mode:active{transform:translateY(4px);box-shadow:0 1px 0 var(--edge)}
+.mode h3{font-size:28px}.mode p{margin:0;color:var(--soft);font-weight:800;font-size:16px}.mode .ex{font-size:32px}
+.toggle{display:flex;gap:12px;align-items:center;font-weight:800}
+.toggle input{width:32px;height:32px;accent-color:var(--leaf)}
+
+/* game */
+.desk{display:flex;flex-direction:column;align-items:center;gap:12px}
+.card{background:var(--card);border-radius:28px;box-shadow:0 6px 0 var(--edge);padding:18px 24px;display:flex;align-items:center;gap:20px;max-width:760px;width:100%}
+.animal{font-size:110px;line-height:1;flex:none}
+.animal.pop{animation:pop .35s ease-out}
+@keyframes pop{from{transform:scale(.3)}}
+.card-text{display:flex;flex-direction:column;gap:8px;min-width:0;flex:1}
+.q{font-family:var(--display);font-weight:600;font-size:30px}
+.fact{font-weight:800;font-size:20px;color:var(--soft);min-height:52px;line-height:1.3}
+.fact.good{color:var(--leaf-dark)}.fact.bad{color:var(--no)}
+.card-actions{display:flex;gap:10px;flex-wrap:wrap}
+.homes{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+.homebtn{border-radius:22px;padding:14px 10px;min-height:170px;display:flex;flex-direction:column;align-items:center;gap:6px;color:var(--hc,#fff);background:var(--hb);box-shadow:0 6px 0 var(--hd);text-align:center;position:relative}
+.homebtn:active{transform:translateY(5px);box-shadow:0 1px 0 var(--hd)}
+.homebtn .ico{font-size:46px;line-height:1}
+.homebtn .nm{font-family:var(--display);font-weight:700;font-size:23px;line-height:1}
+.homebtn .clue{font-weight:800;font-size:14px;opacity:.85}
+.homebtn .got{display:flex;flex-wrap:wrap;justify-content:center;gap:2px;font-size:26px;line-height:1.1;margin-top:auto;min-height:30px}
+.homebtn.shake{animation:shake .4s}
+.homebtn.glow{animation:glow 1s ease-in-out infinite}
+@keyframes shake{25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+@keyframes glow{50%{box-shadow:0 6px 0 var(--hd),0 0 0 8px var(--gold)}}
+.flyer{position:fixed;z-index:30;font-size:90px;line-height:1;left:0;top:0;pointer-events:none;transition:transform .55s cubic-bezier(.5,-0.3,.6,1)}
+.stars{font-size:40px;letter-spacing:3px;text-align:center}
+
+@media (max-width:820px){
+  .homes{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .homebtn{min-height:140px}
+}
+@media (max-width:520px){
+  .homes{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .card{flex-direction:column;text-align:center}.animal{font-size:90px}.card-actions{justify-content:center}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<section id="menu" class="panel">
+  <a class="home" href="index.html">◀ All games</a>
+  <div class="hero">
+    <div class="big" aria-hidden="true">🌍</div>
+    <div>
+      <h1>Habitat Sort</h1>
+      <p>An animal shows up. Tap the place where it belongs. Get it right to learn a fun fact!</p>
+    </div>
+  </div>
+  <h2>Pick a game</h2>
+  <div class="modes">
+    <button class="mode" data-mode="homes"><span class="ex">🐪 🐧 🐒</span><h3>Where do I live?</h3><p>Ocean, desert, jungle, snow and ice, or the farm.</p></button>
+    <button class="mode" data-mode="groups"><span class="ex">🦇 🦉 🐊</span><h3>What kind of animal?</h3><p>Mammal, bird, reptile, fish, or insect.</p></button>
+  </div>
+  <label class="toggle" for="readAloud"><input type="checkbox" id="readAloud" checked> Read the questions and facts out loud</label>
+</section>
+
+<section id="game" hidden>
+  <div class="wrap">
+    <div class="bar">
+      <button class="btn small ghost" id="homeBtn">◀ Menu</button>
+      <div class="sp"></div>
+      <div class="pill">Animal <span id="num">1</span>/<span id="of">12</span></div>
+      <div class="pill">⭐ <span id="stars">0</span></div>
+    </div>
+    <div class="desk">
+      <div class="card">
+        <div class="animal" id="animal" aria-hidden="true">🐪</div>
+        <div class="card-text">
+          <div class="q" id="q">Where does the camel live?</div>
+          <div class="fact" id="fact" role="status"></div>
+          <div class="card-actions">
+            <button class="btn small ghost" id="sayBtn">🔊 Read to me</button>
+            <button class="btn small" id="nextBtn" hidden>Next animal ▶</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="homes" id="homes"></div>
+  </div>
+</section>
+
+<section id="done" class="panel" hidden style="align-items:center;text-align:center">
+  <div style="font-size:80px;line-height:1" aria-hidden="true">🏆</div>
+  <h1 style="font-size:46px;color:var(--leaf-dark)">Every animal is home!</h1>
+  <p style="font-weight:800;font-size:21px;margin:0">You sorted 12 animals and got <span id="dStars">0</span> right on the first try.</p>
+  <div class="stars" id="dRow"></div>
+  <div class="bar" style="justify-content:center">
+    <button class="btn" id="againBtn">Play again</button>
+    <button class="btn ghost" id="menuBtn">Pick another game</button>
+  </div>
+</section>
+
+</div>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const shuffle = a => { a = a.slice(); for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]} return a };
+  const pick = a => a[Math.floor(Math.random()*a.length)];
+
+  const MODES = {
+    homes: {
+      ask: a => `Where does the ${a.name} live?`,
+      bins: [
+        {id:'ocean',  name:'Ocean',        ico:'🌊', hb:'#2f7fc1', hd:'#1f5d92'},
+        {id:'desert', name:'Desert',       ico:'🌵', hb:'#e7b04f', hd:'#b9862f', hc:'#3a2a08'},
+        {id:'jungle', name:'Jungle',       ico:'🌴', hb:'#3c9a55', hd:'#2a7140'},
+        {id:'ice',    name:'Snow and Ice', ico:'❄️', hb:'#bfe2f3', hd:'#86bcd6', hc:'#173a4c'},
+        {id:'farm',   name:'Farm',         ico:'🚜', hb:'#c4513f', hd:'#933a2c'}
+      ],
+      animals: [
+        ['🐳','whale','ocean','Blue whales are the biggest animals that have ever lived.'],
+        ['🐙','octopus','ocean','An octopus has three hearts and blue blood.'],
+        ['🦈','shark','ocean','Sharks were swimming in the ocean before there were dinosaurs.'],
+        ['🦀','crab','ocean','Crabs walk sideways.'],
+        ['🐬','dolphin','ocean','Dolphins rest half of their brain at a time, so they can keep swimming.'],
+        ['🐪','camel','desert','A camel’s hump stores fat, not water.'],
+        ['🦂','scorpion','desert','Scorpions glow under special purple light.'],
+        ['🦎','lizard','desert','Some desert lizards dig into the sand to hide from the heat.'],
+        ['🐍','rattlesnake','desert','Rattlesnakes shake their tails to say “stay away!”'],
+        ['🐒','monkey','jungle','Some monkeys can hang from branches by their tails.'],
+        ['🦜','parrot','jungle','Parrots can copy sounds they hear, even words.'],
+        ['🐅','tiger','jungle','No two tigers have the same stripes.'],
+        ['🦍','gorilla','jungle','Gorillas eat mostly plants, like leaves and fruit.'],
+        ['🐸','tree frog','jungle','Some jungle frogs are bright colors to warn others not to eat them.'],
+        ['🦥','sloth','jungle','Sloths move so slowly that tiny plants grow on their fur.'],
+        ['🐻‍❄️','polar bear','ice','Polar bears have black skin under their white fur.'],
+        ['🐧','penguin','ice','Penguins can’t fly, but they are amazing swimmers.'],
+        ['🦭','seal','ice','Seals stay warm with a thick layer of fat called blubber.'],
+        ['🦌','reindeer','ice','Reindeer noses warm up the cold air before they breathe it in.'],
+        ['🐄','cow','farm','Cows chew their food, swallow it, and then chew it again.'],
+        ['🐖','pig','farm','Pigs roll in mud to keep cool on hot days.'],
+        ['🐔','chicken','farm','Chickens are related to dinosaurs!'],
+        ['🐑','sheep','farm','A sheep’s wool keeps growing until it gets a haircut.'],
+        ['🐴','horse','farm','Horses can doze while standing up.'],
+        ['🦆','duck','farm','Ducks have waterproof feathers.']
+      ]
+    },
+    groups: {
+      ask: a => `What kind of animal is a ${a.name}?`,
+      bins: [
+        {id:'mammal',  name:'Mammal',  clue:'hair or fur, babies drink milk', hb:'#b5651d', hd:'#8a4a12'},
+        {id:'bird',    name:'Bird',    clue:'feathers and a beak',            hb:'#2f7fc1', hd:'#1f5d92'},
+        {id:'reptile', name:'Reptile', clue:'dry, scaly skin',                hb:'#3c9a55', hd:'#2a7140'},
+        {id:'fish',    name:'Fish',    clue:'gills and fins',                 hb:'#1fa3a3', hd:'#147676'},
+        {id:'insect',  name:'Insect',  clue:'six legs',                       hb:'#e7b04f', hd:'#b9862f', hc:'#3a2a08'}
+      ],
+      animals: [
+        ['🐳','whale','mammal','Whales are mammals. They breathe air and feed their babies milk.'],
+        ['🐬','dolphin','mammal','Dolphins are mammals that breathe through a blowhole.'],
+        ['🦇','bat','mammal','Bats are the only mammals that can really fly.'],
+        ['🐘','elephant','mammal','Elephants are the biggest mammals that live on land.'],
+        ['🐄','cow','mammal','Cows are mammals that make milk for their calves.'],
+        ['🐒','monkey','mammal','Monkeys are mammals with hair and hands that can grab.'],
+        ['🐧','penguin','bird','Penguins are birds. They can’t fly, but they swim really well.'],
+        ['🦉','owl','bird','Owls are birds that can turn their heads very far around.'],
+        ['🦩','flamingo','bird','Flamingos are birds that turn pink from the food they eat.'],
+        ['🐔','chicken','bird','Chickens are birds that lay eggs.'],
+        ['🦜','parrot','bird','Parrots are birds that can copy sounds.'],
+        ['🐊','crocodile','reptile','Crocodiles are reptiles with tough, scaly skin.'],
+        ['🐢','turtle','reptile','Turtles are reptiles that carry their shell everywhere.'],
+        ['🐍','snake','reptile','Snakes are reptiles that smell with their tongues.'],
+        ['🦎','lizard','reptile','Lizards are reptiles. Some can grow a new tail.'],
+        ['🦈','shark','fish','Sharks are fish. They breathe underwater with gills.'],
+        ['🐠','clownfish','fish','Clownfish are fish that live safely inside sea anemones.'],
+        ['🐡','pufferfish','fish','A pufferfish can puff up like a balloon to scare enemies.'],
+        ['🐝','bee','insect','Bees are insects. All insects have six legs.'],
+        ['🐞','ladybug','insect','Ladybugs are insects that eat tiny plant bugs.'],
+        ['🦋','butterfly','insect','Butterflies are insects that taste with their feet.'],
+        ['🐜','ant','insect','Ants are insects that can carry things much heavier than themselves.'],
+        ['🦗','cricket','insect','Crickets are insects that chirp by rubbing their wings together.']
+      ]
+    }
+  };
+  const ROUNDS = 12;
+  const CHEERS = ['Yes!','You got it!','Correct!','Great job!','Right!'];
+
+  // sound + speech
+  let ac=null;
+  function audio(){ try{ ac = ac || new (window.AudioContext||window.webkitAudioContext)(); if(ac.state==='suspended') ac.resume() }catch(e){} }
+  function tone(f,t=.12,type='sine',when=0,vol=.16,slide){ if(!ac) return; const o=ac.createOscillator(),g=ac.createGain(),s=ac.currentTime+when; o.type=type; o.frequency.setValueAtTime(f,s); if(slide) o.frequency.exponentialRampToValueAtTime(slide,s+t); g.gain.setValueAtTime(vol,s); g.gain.exponentialRampToValueAtTime(.001,s+t); o.connect(g).connect(ac.destination); o.start(s); o.stop(s+t+.02) }
+  const sYay = () => [523,659,784].forEach((f,i)=>tone(f,.16,'triangle',i*.08));
+  const sOops = () => tone(280,.28,'sawtooth',0,.07,160);
+  const sFanfare = () => [523,659,784,1047,784,1047].forEach((f,i)=>tone(f,.18,'triangle',i*.12));
+  function speak(text, force){ if(!force && !$('readAloud').checked) return; try{ speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.rate = .9; u.lang = 'en-US'; speechSynthesis.speak(u) }catch(e){} }
+  try{ $('readAloud').checked = localStorage.getItem('habitat-read') !== '0' }catch(e){}
+  $('readAloud').addEventListener('change', () => { try{ localStorage.setItem('habitat-read', $('readAloud').checked ? '1' : '0') }catch(e){} });
+
+  let S = null;
+
+  function start(mode){
+    audio(); speak(' ');
+    const m = MODES[mode];
+    // balanced pick: at least two from each group, rest random
+    const byBin = {}; m.animals.forEach(a => (byBin[a[2]] = byBin[a[2]] || []).push(a));
+    let chosen = []; Object.values(byBin).forEach(list => chosen.push(...shuffle(list).slice(0,2)));
+    const rest = shuffle(m.animals.filter(a => !chosen.includes(a)));
+    chosen = shuffle(chosen.concat(rest.slice(0, ROUNDS - chosen.length)));
+    S = {mode, m, list: chosen.map(a => ({emoji:a[0], name:a[1], bin:a[2], fact:a[3]})), i:-1, stars:0};
+    $('of').textContent = S.list.length; $('stars').textContent = 0;
+    buildHomes(); show('game'); next();
+  }
+
+  function buildHomes(){
+    $('homes').innerHTML = '';
+    S.m.bins.forEach(b => {
+      const el = document.createElement('button');
+      el.className = 'homebtn'; el.dataset.bin = b.id;
+      el.style.setProperty('--hb', b.hb); el.style.setProperty('--hd', b.hd); if(b.hc) el.style.setProperty('--hc', b.hc);
+      el.innerHTML = (b.ico ? `<span class="ico" aria-hidden="true">${b.ico}</span>` : '') + `<span class="nm">${b.name}</span>` + (b.clue ? `<span class="clue">${b.clue}</span>` : '') + '<span class="got" aria-hidden="true"></span>';
+      el.addEventListener('click', () => choose(b.id, el));
+      $('homes').append(el);
+    });
+  }
+
+  function next(){
+    S.i++;
+    if(S.i >= S.list.length) return finish();
+    S.cur = S.list[S.i]; S.misses = 0; S.done = false;
+    $('num').textContent = S.i + 1;
+    const a = $('animal'); a.textContent = S.cur.emoji; a.style.visibility = ''; a.classList.remove('pop'); void a.offsetWidth; a.classList.add('pop');
+    $('q').textContent = S.m.ask(S.cur);
+    $('fact').textContent = ''; $('fact').className = 'fact';
+    $('nextBtn').hidden = true;
+    document.querySelectorAll('.homebtn').forEach(h => h.classList.remove('glow'));
+    speak($('q').textContent);
+  }
+
+  function choose(bin, el){
+    if(!S || S.done) return;
+    audio();
+    if(bin === S.cur.bin){
+      S.done = true;
+      if(S.misses === 0){ S.stars++; $('stars').textContent = S.stars }
+      document.querySelectorAll('.homebtn').forEach(h => h.classList.remove('glow'));
+      sYay(); fly(el);
+      $('fact').className = 'fact good';
+      $('fact').textContent = pick(CHEERS) + (S.misses === 0 ? ' ⭐ ' : ' ') + S.cur.fact;
+      speak(S.cur.fact);
+      $('nextBtn').hidden = false; $('nextBtn').textContent = S.i + 1 >= S.list.length ? 'Finish ▶' : 'Next animal ▶';
+    } else {
+      S.misses++; sOops();
+      el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake');
+      $('fact').className = 'fact bad';
+      if(S.misses >= 2){
+        const right = document.querySelector(`.homebtn[data-bin="${S.cur.bin}"]`); right.classList.add('glow');
+        $('fact').textContent = 'Here’s a hint: look at the glowing one!';
+      } else $('fact').textContent = 'Not quite. Try another one!';
+      speak($('fact').textContent);
+    }
+  }
+
+  function fly(target){
+    const src = $('animal').getBoundingClientRect(), dst = target.querySelector('.got').getBoundingClientRect();
+    const f = document.createElement('div'); f.className = 'flyer'; f.textContent = S.cur.emoji;
+    f.style.transform = `translate(${src.left}px,${src.top}px)`;
+    document.body.append(f); $('animal').style.visibility = 'hidden';
+    void f.offsetWidth;
+    f.style.transform = `translate(${dst.left + dst.width/2 - 45}px,${dst.top - 30}px) scale(.3)`;
+    setTimeout(() => { f.remove(); const s = document.createElement('span'); s.textContent = S.cur.emoji; target.querySelector('.got').append(s) }, 560);
+  }
+
+  function finish(){
+    sFanfare();
+    $('dStars').textContent = S.stars;
+    $('dRow').textContent = '⭐'.repeat(S.stars) + '☆'.repeat(S.list.length - S.stars);
+    show('done');
+  }
+
+  function show(id){ ['menu','game','done'].forEach(x => $(x).hidden = x !== id); window.scrollTo(0,0) }
+
+  document.querySelectorAll('.mode').forEach(b => b.addEventListener('click', () => start(b.dataset.mode)));
+  $('nextBtn').addEventListener('click', next);
+  $('sayBtn').addEventListener('click', () => speak(S.done ? S.cur.fact : $('q').textContent, true));
+  $('homeBtn').addEventListener('click', () => { try{ speechSynthesis.cancel() }catch(e){} show('menu') });
+  $('againBtn').addEventListener('click', () => start(S.mode));
+  $('menuBtn').addEventListener('click', () => show('menu'));
+})();
+</script>
+</body>
+</html>

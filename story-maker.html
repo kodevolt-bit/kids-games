@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Story Maker</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Andika:wght@400;700&display=swap">
+<style>
+/* Layout: an open picture book. Choosing pages up front, then a story page with the three picks as swappable "bookmarks". */
+:root{
+  --cover:#5a2d82; --cover-2:#46216a; --page:#fffaf0; --page-2:#f3ead6; --ink:#2b2140; --soft:#6b5f80;
+  --rose:#f2668b; --rose-dark:#c4456a; --sun:#ffc94d; --mint:#48c9a4; --mint-dark:#2e9b7c; --line:#e3d6b8;
+  --display:"Fredoka","Trebuchet MS",system-ui,sans-serif;
+  --read:"Andika","Verdana",system-ui,sans-serif;
+  color-scheme:light;
+}
+[hidden]{display:none!important}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;min-height:100%}
+body{background:var(--cover);color:var(--ink);font-family:var(--display);font-size:18px;
+  padding:max(12px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(18px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));
+  -webkit-user-select:none;user-select:none;touch-action:manipulation;-webkit-text-size-adjust:100%}
+button{font:inherit;color:inherit;border:0;cursor:pointer;touch-action:manipulation}
+button:focus-visible,a:focus-visible{outline:4px solid var(--sun);outline-offset:3px}
+h1,h2,h3{margin:0;line-height:1.05;text-wrap:balance;font-weight:700}
+.wrap{max-width:1050px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+.home{color:#e8d9ff;font-weight:600;text-decoration:none;align-self:flex-start;padding:6px 0}
+.book{background:var(--page);border-radius:10px 28px 28px 10px;box-shadow:inset 14px 0 0 var(--page-2),0 8px 0 var(--cover-2);padding:24px 24px 24px 38px;display:flex;flex-direction:column;gap:18px}
+.btn{border-radius:18px;padding:12px 22px;font-weight:600;font-size:22px;background:var(--rose);color:#fff;box-shadow:0 5px 0 var(--rose-dark);min-height:58px}
+.btn:active{transform:translateY(4px);box-shadow:0 1px 0 var(--rose-dark)}
+.btn.mint{background:var(--mint);box-shadow:0 5px 0 var(--mint-dark)}
+.btn.ghost{background:var(--page-2);color:var(--ink);box-shadow:0 5px 0 var(--line)}
+.btn.small{min-height:48px;padding:6px 16px;font-size:19px}
+.top{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.top .sp{flex:1}
+.title-row{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.title-row h1{font-size:clamp(36px,5.5vw,56px);color:var(--cover)}
+.steps{display:flex;gap:10px}
+.step{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--page-2);font-weight:700;font-size:22px;color:var(--soft)}
+.step.on{background:var(--sun);color:var(--ink)}
+.step.ok{background:var(--mint);color:#fff}
+.ask{font-size:30px;font-weight:600}
+.choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.choice{background:var(--page-2);border-radius:22px;padding:16px 10px;display:flex;flex-direction:column;align-items:center;gap:6px;box-shadow:0 5px 0 var(--line);min-height:150px;justify-content:center}
+.choice:active{transform:translateY(4px);box-shadow:0 1px 0 var(--line)}
+.choice .e{font-size:64px;line-height:1}
+.choice .n{font-weight:600;font-size:21px;text-align:center}
+
+.picks{display:flex;gap:12px;flex-wrap:wrap}
+.pick{display:flex;align-items:center;gap:10px;background:var(--page-2);border-radius:18px;padding:8px 14px 8px 10px;box-shadow:0 4px 0 var(--line);min-height:58px}
+.pick:active{transform:translateY(3px);box-shadow:0 1px 0 var(--line)}
+.pick .e{font-size:38px;line-height:1}
+.pick .n{font-weight:600;font-size:18px;text-align:left;line-height:1.1}
+.pick .n small{display:block;color:var(--soft);font-size:14px}
+.story{font-family:var(--read);font-size:clamp(22px,2.6vw,28px);line-height:1.6;max-width:36em;display:flex;flex-direction:column;gap:6px}
+.story p{margin:0}
+.story span{border-radius:8px;transition:background .2s;padding:0 2px}
+.story span.reading{background:var(--sun)}
+.story .end{font-family:var(--display);font-weight:700;color:var(--cover);font-size:30px;margin-top:6px}
+.art{font-size:72px;line-height:1;letter-spacing:8px}
+@media (max-width:640px){
+  .choices{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .book{padding:18px 16px 18px 28px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="home" href="index.html">◀ All games</a>
+
+  <section id="chooser" class="book">
+    <div class="title-row">
+      <h1>Story Maker</h1>
+      <div class="sp" style="flex:1"></div>
+      <div class="steps" aria-label="Steps"><span class="step on" id="st0">1</span><span class="step" id="st1">2</span><span class="step" id="st2">3</span></div>
+    </div>
+    <div class="ask" id="ask">Who is the hero of your story?</div>
+    <div class="choices" id="choices"></div>
+    <div class="top"><button class="btn small ghost" id="backBtn" hidden>◀ Back</button><div class="sp"></div><button class="btn small ghost" id="surpriseBtn">🎲 Surprise me</button></div>
+  </section>
+
+  <section id="reader" class="book" hidden>
+    <div class="top">
+      <div class="art" id="art" aria-hidden="true"></div>
+      <div class="sp"></div>
+      <button class="btn mint" id="readBtn">🔊 Read it to me</button>
+    </div>
+    <div class="story" id="story"></div>
+    <div>
+      <p style="margin:0 0 10px;font-weight:600;color:var(--soft)">Tap a picture to change that part of the story:</p>
+      <div class="picks" id="picks"></div>
+    </div>
+    <div class="top">
+      <button class="btn ghost" id="newBtn">📖 Start a new story</button>
+      <button class="btn" id="againBtn">🎲 Same picks, new words</button>
+    </div>
+  </section>
+</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const pick = a => a[Math.floor(Math.random()*a.length)];
+
+  const HEROES = [
+    {e:'🐉', n:'Ember',        who:'a brave little dragon',  power:'took a deep breath and puffed out a warm, glowing flame'},
+    {e:'🤖', n:'Bolt',         who:'a tiny robot',            power:'beeped three times and stretched out two super-long robot arms'},
+    {e:'🐱', n:'Pickles',      who:'a curious cat',           power:'sniffed the air, wiggled with excitement, and leaped up high'},
+    {e:'🦄', n:'Sparkle',      who:'a kind unicorn',          power:'tapped the ground with a glittery hoof and made a rainbow appear'},
+    {e:'🧑‍🚀', n:'Captain Nova', who:'a fearless astronaut',   power:'switched on a jet pack and zoomed up into the sky'},
+    {e:'🦖', n:'Stomp',        who:'a friendly dinosaur',     power:'stomped so hard that the ground went BOOM'}
+  ];
+  const PLACES = [
+    {e:'🏰', n:'Candy Castle',   where:'in a castle made of candy',  detail:'The walls were gumdrops, and the towers were giant lollipops.'},
+    {e:'🌊', n:'Under the Sea',  where:'deep under the sea',         detail:'Fish of every color swam by, and bubbles floated up like tiny balloons.'},
+    {e:'🌙', n:'The Moon',       where:'on the moon',                detail:'It was quiet and dusty, and Earth glowed blue far away.'},
+    {e:'🌴', n:'Jungle',         where:'in a giant green jungle',    detail:'Vines hung from the trees, and parrots chattered all day long.'},
+    {e:'🏔️', n:'Snowy Mountain', where:'on top of a snowy mountain', detail:'The snow sparkled, and the wind whistled a chilly song.'},
+    {e:'🏙️', n:'Busy City',      where:'in a busy city',             detail:'Cars honked, buses rumbled, and tall buildings touched the clouds.'}
+  ];
+  const PROBLEMS = [
+    {e:'🎈', n:'Lost balloon', start:'a little kid let go of a bright red balloon, and it floated up, up, up until it got stuck way up high', shout:'My balloon! I can’t reach it!', who:'the little kid', fix:'the balloon came floating gently back down', end:()=>'The little kid hugged the balloon and giggled all the way home.'},
+    {e:'🌑', n:'Lights out', start:'all the lights went out, and everything turned dark', shout:'It’s too dark! We can’t see a thing!', who:'a sleepy bunny', fix:'the lights flickered back on, one by one', end:h=>`Everyone could see again, and the bunny gave ${h.n} a big, fuzzy hug.`},
+    {e:'🍦', n:'Melting ice cream', start:'the sun got so hot that all the ice cream began to melt', shout:'Our ice cream is turning into soup!', who:'a group of hungry kids', fix:'a cool breeze blew in, and the ice cream froze back into perfect scoops', end:h=>`Everyone got a cone, and ${h.n} got the biggest one of all.`},
+    {e:'🐣', n:'Baby bird', start:'a baby bird fell out of its nest and couldn’t get back home', shout:'Cheep! Cheep! Help me!', who:'the baby bird', fix:'the baby bird was safe and snug in its nest again', end:()=>'The mama bird sang a happy thank-you song.'},
+    {e:'🤧', n:'Giant sneeze', start:'a giant sneezed so loudly that everything got blown all over the place', shout:'Our things are everywhere!', who:'a little mouse', fix:'everything landed right back where it belonged', end:()=>'The giant said, “Excuse me!” and everyone laughed and laughed.'},
+    {e:'🧸', n:'Lost teddy', start:'a little bear lost a favorite teddy and could not find it anywhere', shout:'Where is my teddy? I can’t sleep without it!', who:'the little bear', fix:'there was the teddy, hiding in a cozy corner', end:()=>'The little bear fell fast asleep with a great big smile.'}
+  ];
+  const STEPS = [
+    {list:HEROES,   ask:'Who is the hero of your story?'},
+    {list:PLACES,   ask:'Where does the story happen?'},
+    {list:PROBLEMS, ask:'What goes wrong?'}
+  ];
+  const KIND = ['Hero','Place','Problem'];
+
+  let step = 0, picks = [null,null,null], sentences = [];
+
+  // speech
+  let reading = false;
+  function stopReading(){ reading = false; try{ speechSynthesis.cancel() }catch(e){} document.querySelectorAll('.story span').forEach(s=>s.classList.remove('reading')); $('readBtn').textContent = '🔊 Read it to me' }
+  function readAll(){
+    if(reading){ stopReading(); return }
+    if(!('speechSynthesis' in window)) return;
+    stopReading(); reading = true; $('readBtn').textContent = '⏹ Stop';
+    const spans = [...document.querySelectorAll('.story span')];
+    spans.forEach((sp, i) => {
+      const u = new SpeechSynthesisUtterance(sp.textContent.replace(/[“”]/g,'"'));
+      u.rate = .88; u.lang = 'en-US';
+      u.onstart = () => { spans.forEach(s=>s.classList.remove('reading')); sp.classList.add('reading') };
+      if(i === spans.length - 1) u.onend = () => { if(reading) stopReading() };
+      speechSynthesis.speak(u);
+    });
+  }
+
+  // chooser
+  function renderStep(){
+    const s = STEPS[step];
+    $('ask').textContent = s.ask;
+    [0,1,2].forEach(i => { const el = $('st'+i); el.className = 'step' + (i < step ? ' ok' : i === step ? ' on' : ''); el.textContent = i < step ? '✓' : i+1 });
+    $('backBtn').hidden = step === 0;
+    $('choices').innerHTML = '';
+    s.list.forEach((item, i) => {
+      const b = document.createElement('button'); b.className = 'choice';
+      b.innerHTML = `<span class="e" aria-hidden="true">${item.e}</span><span class="n">${item.n}</span>`;
+      b.addEventListener('click', () => choose(i));
+      $('choices').append(b);
+    });
+  }
+  function choose(i){
+    picks[step] = i;
+    if(step < 2){ step++; renderStep() } else { makeStory(); show('reader') }
+  }
+
+  // story
+  function makeStory(){
+    const h = HEROES[picks[0]], p = PLACES[picks[1]], x = PROBLEMS[picks[2]];
+    const opener = pick(['Once upon a time','Long, long ago','Not very long ago']);
+    const ready = pick([`“Don’t worry, I can help!” said ${h.n}.`, `${h.n} knew just what to do.`, `“Leave it to me!” said ${h.n}.`]);
+    const cheer = pick([`“Hooray for ${h.n}!” everyone cheered.`, `Everyone clapped and cheered for ${h.n}.`, `From then on, everyone knew ${h.n} was a true hero.`]);
+    sentences = [
+      [`${opener}, there was ${h.who} named ${h.n}.`, `${h.n} lived ${p.where}.`, p.detail],
+      [`One day, ${x.start}.`, `“${x.shout}” cried ${x.who}.`],
+      [ready, `${h.n} ${h.power}, and ${x.fix}.`],
+      [x.end(h), cheer]
+    ];
+    $('art').textContent = h.e + p.e + x.e;
+    $('story').innerHTML = sentences.map(par => '<p>' + par.map(t => `<span>${t}</span>`).join(' ') + '</p>').join('') + '<p class="end"><span>The End.</span></p>';
+    $('picks').innerHTML = '';
+    [h, p, x].forEach((item, k) => {
+      const b = document.createElement('button'); b.className = 'pick';
+      b.innerHTML = `<span class="e" aria-hidden="true">${item.e}</span><span class="n"><small>${KIND[k]} 🔄</small>${item.n}</span>`;
+      b.setAttribute('aria-label', 'Change the ' + KIND[k].toLowerCase() + ', now ' + item.n);
+      b.addEventListener('click', () => { stopReading(); const list = STEPS[k].list; let n; do { n = Math.floor(Math.random()*list.length) } while(n === picks[k]); picks[k] = n; makeStory() });
+      $('picks').append(b);
+    });
+  }
+
+  function show(id){ stopReading(); ['chooser','reader'].forEach(x => $(x).hidden = x !== id); window.scrollTo(0,0) }
+
+  $('backBtn').addEventListener('click', () => { if(step > 0){ step--; renderStep() } });
+  $('surpriseBtn').addEventListener('click', () => { picks = STEPS.map(s => Math.floor(Math.random()*s.list.length)); makeStory(); show('reader') });
+  $('readBtn').addEventListener('click', readAll);
+  $('newBtn').addEventListener('click', () => { step = 0; picks = [null,null,null]; renderStep(); show('chooser') });
+  $('againBtn').addEventListener('click', () => { stopReading(); makeStory() });
+  renderStep();
+})();
+</script>
+</body>
+</html>
