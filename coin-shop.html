@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Coin Shop Cashier</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;800&display=swap">
+<style>
+/* Layout: a corner-shop scene. Customer at the window on the left, wooden counter on the right, coin purse along the bottom. One committed light look. */
+:root{
+  --sky:#bfe6ea; --sky-deep:#8ccfd6;
+  --awning-a:#e8574a; --awning-b:#fff7ec;
+  --wood:#b97a46; --wood-dark:#8a5530; --wood-light:#d69a62;
+  --paper:#fffaf0; --ink:#2c2a3a; --ink-soft:#5d5a70;
+  --go:#2f9e5b; --go-dark:#21794a; --warn:#e0892b; --oops:#d2493c;
+  --copper-a:#f0a46c; --copper-b:#b2602d; --silver-a:#f4f6f8; --silver-b:#9aa3ad;
+  --bill:#7cbf7a; --bill-dark:#3f7f45;
+  --display:"Fredoka","Nunito","Trebuchet MS",system-ui,sans-serif;
+  --body:"Nunito","Trebuchet MS",system-ui,sans-serif;
+  color-scheme:light;
+}
+[hidden]{display:none!important}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0}
+body{background:var(--sky);color:var(--ink);font-family:var(--body);font-size:18px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px 20px;
+  -webkit-user-select:none;user-select:none;touch-action:manipulation;-webkit-text-size-adjust:100%}
+button{font:inherit;color:inherit;touch-action:manipulation;cursor:pointer}
+button:focus-visible{outline:4px solid var(--ink);outline-offset:3px}
+.wrap{max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:14px;min-height:100%}
+.awning{height:34px;border-radius:0 0 18px 18px;background:repeating-linear-gradient(90deg,var(--awning-a) 0 48px,var(--awning-b) 48px 96px);box-shadow:0 6px 0 rgba(0,0,0,.08)}
+h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance}
+
+/* top bar */
+.bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.pill{background:var(--paper);border-radius:999px;padding:8px 16px;font-family:var(--display);font-weight:600;font-size:20px;box-shadow:0 3px 0 rgba(0,0,0,.1)}
+.bar .spacer{flex:1}
+.btn{border:0;border-radius:18px;padding:14px 22px;font-family:var(--display);font-weight:600;font-size:22px;background:var(--paper);box-shadow:0 5px 0 rgba(0,0,0,.18);min-height:60px;transition:transform .08s}
+.btn:active{transform:translateY(4px);box-shadow:0 1px 0 rgba(0,0,0,.18)}
+.btn.go{background:var(--go);color:#fff;box-shadow:0 5px 0 var(--go-dark)}
+.btn.small{min-height:48px;padding:8px 16px;font-size:18px}
+
+/* scene */
+.scene{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:16px}
+.window{background:linear-gradient(var(--sky-deep),var(--sky));border:10px solid var(--paper);border-radius:28px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:10px;position:relative;min-height:330px}
+.bubble{background:var(--paper);border-radius:22px;padding:12px 18px;font-weight:800;font-size:20px;text-align:center;position:relative;max-width:100%}
+.bubble::after{content:"";position:absolute;left:50%;bottom:-14px;margin-left:-10px;border:12px solid transparent;border-top-color:var(--paper);border-bottom:0}
+.customer{font-size:110px;line-height:1;animation:walkin .5s ease-out}
+.item-row{display:flex;align-items:center;gap:14px}
+.item{font-size:76px;line-height:1}
+.tag{background:var(--paper);border:3px dashed var(--wood-dark);border-radius:12px;padding:6px 14px;font-family:var(--display);font-weight:700;font-size:40px;transform:rotate(-4deg)}
+.paid{display:flex;align-items:center;gap:8px;font-weight:800}
+@keyframes walkin{from{transform:translateX(-60px);opacity:0}to{transform:none;opacity:1}}
+
+.counter{background:linear-gradient(var(--wood-light),var(--wood));border-radius:28px;padding:16px;display:flex;flex-direction:column;gap:12px;box-shadow:inset 0 -10px 0 var(--wood-dark)}
+.goal{background:var(--paper);border-radius:16px;padding:10px 14px;font-weight:800;font-size:20px;text-align:center}
+.goal b{font-family:var(--display);font-size:26px;color:var(--go-dark)}
+.tray{flex:1;min-height:170px;background:rgba(0,0,0,.14);border-radius:20px;padding:12px;display:flex;flex-wrap:wrap;align-content:flex-start;gap:8px;position:relative}
+.tray-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--paper);font-weight:800;font-size:20px;text-align:center;padding:16px;opacity:.9}
+.total{color:var(--paper);font-family:var(--display);font-weight:600;font-size:26px;text-align:center;text-shadow:0 2px 0 var(--wood-dark)}
+.actions{display:flex;gap:12px}
+.actions .btn{flex:1}
+
+/* coins */
+.coin{--d:80px;width:var(--d);height:var(--d);border-radius:50%;border:0;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:700;color:var(--ink);font-size:calc(var(--d)*.3);flex:none;
+  background:radial-gradient(circle at 35% 30%,var(--silver-a),var(--silver-b));box-shadow:inset 0 0 0 4px rgba(255,255,255,.55),inset 0 0 0 7px rgba(0,0,0,.12),0 4px 0 rgba(0,0,0,.25)}
+.coin.c1{--d:74px;background:radial-gradient(circle at 35% 30%,var(--copper-a),var(--copper-b));color:#3a1c08}
+.coin.c5{--d:82px}.coin.c10{--d:68px}.coin.c25{--d:94px}
+.coin.c100{width:150px;height:72px;border-radius:10px;background:linear-gradient(135deg,var(--bill),var(--bill-dark));color:#fff;font-size:28px;box-shadow:inset 0 0 0 5px rgba(255,255,255,.35),0 4px 0 rgba(0,0,0,.25)}
+.tray .coin{transform:scale(.72);margin:-10px;animation:pop .22s ease-out}
+.tray .coin.c100{margin:-12px -20px}
+@keyframes pop{from{transform:scale(.2)}to{transform:scale(.72)}}
+
+.purse{background:var(--paper);border-radius:28px;padding:14px 16px;display:flex;justify-content:center;align-items:flex-end;gap:18px;flex-wrap:wrap;box-shadow:0 6px 0 rgba(0,0,0,.1)}
+.purse-slot{display:flex;flex-direction:column;align-items:center;gap:6px}
+.purse-slot .coin:active{transform:translateY(4px) scale(.95)}
+.purse-slot span{font-weight:800;font-size:16px;color:var(--ink-soft)}
+
+/* toast */
+.toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 24px);transform:translateX(-50%);background:var(--ink);color:#fff;padding:14px 24px;border-radius:20px;font-family:var(--display);font-weight:600;font-size:24px;text-align:center;max-width:calc(100% - 32px);z-index:20;animation:drop .25s ease-out}
+.toast.good{background:var(--go)}.toast.bad{background:var(--oops)}
+@keyframes drop{from{transform:translate(-50%,-20px);opacity:0}}
+
+/* menu and end */
+.panel{background:var(--paper);border-radius:28px;padding:24px;display:flex;flex-direction:column;gap:18px;box-shadow:0 6px 0 rgba(0,0,0,.1)}
+.hero{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.hero h1{font-size:clamp(36px,6vw,60px);line-height:1}
+.hero p{margin:6px 0 0;color:var(--ink-soft);font-weight:800;font-size:19px}
+.legend{display:flex;gap:16px;flex-wrap:wrap;justify-content:center}
+.modes{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+.mode{border:0;border-radius:22px;padding:18px;text-align:left;background:var(--sky);box-shadow:0 5px 0 var(--sky-deep);display:flex;flex-direction:column;gap:6px;min-height:120px}
+.mode:active{transform:translateY(4px);box-shadow:0 1px 0 var(--sky-deep)}
+.mode h3{font-size:26px}.mode p{margin:0;font-weight:800;color:var(--ink-soft);font-size:16px}
+.mode.change{background:#ffe2b8;box-shadow:0 5px 0 var(--warn)}
+.toggle{display:flex;align-items:center;gap:12px;font-weight:800;font-size:19px}
+.toggle input{width:34px;height:34px;accent-color:var(--go)}
+.stars{font-size:44px;letter-spacing:4px;text-align:center}
+.center{text-align:center}
+.shake{animation:shake .4s}
+@keyframes shake{25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+
+@media (max-width:760px){
+  .scene{grid-template-columns:1fr}
+  .window{min-height:0}.customer{font-size:80px}.item{font-size:56px}.tag{font-size:32px}
+  .coin.c1{--d:62px}.coin.c5{--d:68px}.coin.c10{--d:58px}.coin.c25{--d:78px}.coin.c100{width:120px;height:60px;font-size:22px}
+  .purse{gap:10px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <div class="awning" aria-hidden="true"></div>
+
+  <!-- MENU -->
+  <section id="menu" class="panel">
+    <div class="hero">
+      <div style="font-size:84px;line-height:1" aria-hidden="true">🏪</div>
+      <div>
+        <h1>Coin Shop Cashier</h1>
+        <p>Customers want to buy things. Tap coins to pay the exact price!</p>
+      </div>
+    </div>
+    <div class="legend" aria-label="Coin values">
+      <div class="purse-slot"><div class="coin c1">1¢</div><span>penny</span></div>
+      <div class="purse-slot"><div class="coin c5">5¢</div><span>nickel</span></div>
+      <div class="purse-slot"><div class="coin c10">10¢</div><span>dime</span></div>
+      <div class="purse-slot"><div class="coin c25">25¢</div><span>quarter</span></div>
+      <div class="purse-slot"><div class="coin c100">$1</div><span>dollar</span></div>
+    </div>
+    <h2>Pick a game</h2>
+    <div class="modes">
+      <button class="mode" data-mode="easy"><h3>Easy</h3><p>Pennies, nickels and dimes. Prices up to 25¢.</p></button>
+      <button class="mode" data-mode="medium"><h3>Medium</h3><p>Quarters join in. Prices up to 75¢.</p></button>
+      <button class="mode" data-mode="hard"><h3>Hard</h3><p>Dollar bills too. Prices up to $1.99.</p></button>
+      <button class="mode change" data-mode="change"><h3>Make Change</h3><p>The customer pays $1. You give back the change.</p></button>
+    </div>
+    <label class="toggle" for="helper"><input type="checkbox" id="helper" checked> Show how much is on the counter</label>
+    <p class="center" style="margin:0;font-weight:800;color:var(--ink-soft)">Stars earned so far: <span id="allStars">0</span> ⭐</p>
+  </section>
+
+  <!-- GAME -->
+  <section id="game" hidden>
+    <div class="wrap" style="min-height:0">
+      <div class="bar">
+        <button class="btn small" id="homeBtn">◀ Menu</button>
+        <div class="pill" id="levelPill">Easy</div>
+        <div class="spacer"></div>
+        <div class="pill">Customer <span id="custNum">1</span>/10</div>
+        <div class="pill">⭐ <span id="starCount">0</span></div>
+      </div>
+
+      <div class="scene">
+        <div class="window" id="window">
+          <div class="bubble" id="bubble">I'd like this, please!</div>
+          <div class="customer" id="customer" aria-hidden="true">🐻</div>
+          <div class="item-row">
+            <div class="item" id="item" aria-hidden="true">🍎</div>
+            <div class="tag" id="tag">23¢</div>
+          </div>
+        </div>
+
+        <div class="counter">
+          <div class="goal" id="goal">Pay <b>23¢</b></div>
+          <div class="tray" id="tray"><div class="tray-empty" id="trayEmpty">Tap coins below to put them here.<br>Tap a coin here to take it back.</div></div>
+          <div class="total" id="total">On the counter: 0¢</div>
+          <div class="actions">
+            <button class="btn" id="clearBtn">Clear</button>
+            <button class="btn go" id="payBtn">Pay!</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="purse" id="purse"></div>
+    </div>
+  </section>
+
+  <!-- DONE -->
+  <section id="done" class="panel center" hidden>
+    <div style="font-size:90px;line-height:1" aria-hidden="true">🎉</div>
+    <h1 style="font-size:44px">Shop closed!</h1>
+    <p style="font-weight:800;font-size:22px;margin:0">You helped 10 customers and earned <span id="doneStars">0</span> stars.</p>
+    <div class="stars" id="starRow"></div>
+    <div class="actions" style="justify-content:center;flex-wrap:wrap">
+      <button class="btn go" id="againBtn">Play again</button>
+      <button class="btn" id="menuBtn2">Pick another game</button>
+    </div>
+  </section>
+</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const MODES = {
+    easy:   {name:'Easy',   coins:[1,5,10],        min:3,  max:25},
+    medium: {name:'Medium', coins:[1,5,10,25],     min:10, max:75},
+    hard:   {name:'Hard',   coins:[1,5,10,25,100], min:45, max:199},
+    change: {name:'Make Change', coins:[1,5,10,25], min:5, max:95}
+  };
+  const NAMES = {1:'penny',5:'nickel',10:'dime',25:'quarter',100:'dollar'};
+  const CUSTOMERS = ['🐻','🐰','🦊','🐸','🐼','🐨','🐷','🐵','🦁','🐯','🐮','🐔'];
+  const ITEMS = ['🍎','🧃','🍪','🎈','🧸','✏️','🍌','🥕','🍩','🎨','⚽','🧁','📚','🪁','🍓','🦖'];
+  const CHEERS = ['Great job!','You got it!','Perfect!','Super cashier!','Thank you!','Awesome counting!'];
+
+  const fmt = c => c < 100 ? c + '¢' : '$' + (c/100).toFixed(2);
+  const rand = (a,b) => a + Math.floor(Math.random()*(b-a+1));
+  const pick = arr => arr[Math.floor(Math.random()*arr.length)];
+
+  let state = {mode:'easy', n:0, stars:0, price:0, target:0, placed:[], firstTry:true, busy:false};
+
+  // storage (optional)
+  const store = {
+    get(){ try { return +localStorage.getItem('coinshop-stars') || 0 } catch(e){ return 0 } },
+    add(n){ try { localStorage.setItem('coinshop-stars', String(this.get()+n)) } catch(e){} }
+  };
+  $('allStars').textContent = store.get();
+
+  // sound
+  let ac = null;
+  function audio(){ try { ac = ac || new (window.AudioContext||window.webkitAudioContext)(); if (ac.state==='suspended') ac.resume(); } catch(e){} }
+  function tone(f, t=0.12, type='sine', when=0, vol=0.18){
+    if(!ac) return;
+    const o = ac.createOscillator(), g = ac.createGain(), s = ac.currentTime + when;
+    o.type = type; o.frequency.setValueAtTime(f, s);
+    g.gain.setValueAtTime(vol, s); g.gain.exponentialRampToValueAtTime(0.001, s + t);
+    o.connect(g).connect(ac.destination); o.start(s); o.stop(s + t + 0.02);
+  }
+  const sClink = () => { tone(1900,.07,'triangle'); tone(2600,.09,'triangle',.04,.1) };
+  const sBack = () => tone(700,.08,'triangle');
+  const sYay = () => [523,659,784,1047].forEach((f,i)=>tone(f,.18,'triangle',i*.09));
+  const sOops = () => { tone(260,.18,'square',0,.08); tone(200,.25,'square',.15,.08) };
+
+  function coinEl(v){
+    const b = document.createElement('button');
+    b.className = 'coin c' + v;
+    b.textContent = v === 100 ? '$1' : v + '¢';
+    b.setAttribute('aria-label', NAMES[v] + ', ' + (v===100 ? 'one dollar' : v + ' cents'));
+    return b;
+  }
+
+  function buildPurse(){
+    const p = $('purse'); p.innerHTML = '';
+    MODES[state.mode].coins.forEach(v => {
+      const slot = document.createElement('div'); slot.className = 'purse-slot';
+      const c = coinEl(v);
+      c.addEventListener('pointerdown', e => { e.preventDefault(); addCoin(v) });
+      c.addEventListener('keydown', e => { if(e.key==='Enter'||e.key===' '){ e.preventDefault(); addCoin(v) } });
+      const lbl = document.createElement('span'); lbl.textContent = NAMES[v];
+      slot.append(c, lbl); p.append(slot);
+    });
+  }
+
+  function addCoin(v){
+    if(state.busy) return;
+    audio();
+    if(state.placed.length >= 30){ toast('That is a lot of coins! Try bigger ones.', ''); return }
+    state.placed.push(v); sClink(); renderTray();
+  }
+  function removeCoin(i){
+    if(state.busy) return;
+    state.placed.splice(i,1); sBack(); renderTray();
+  }
+  const sum = () => state.placed.reduce((a,b)=>a+b,0);
+
+  function renderTray(){
+    const t = $('tray');
+    t.querySelectorAll('.coin').forEach(c => c.remove());
+    $('trayEmpty').hidden = state.placed.length > 0;
+    state.placed.forEach((v,i) => {
+      const c = coinEl(v);
+      c.addEventListener('pointerdown', e => { e.preventDefault(); removeCoin(i) });
+      c.addEventListener('keydown', e => { if(e.key==='Enter'||e.key===' '){ e.preventDefault(); removeCoin(i) } });
+      t.append(c);
+    });
+    $('total').hidden = !$('helper').checked;
+    $('total').textContent = 'On the counter: ' + fmt(sum());
+  }
+
+  function newCustomer(){
+    state.n++; state.placed = []; state.firstTry = true; state.busy = false;
+    const m = MODES[state.mode];
+    // easy: avoid prices that would need tons of pennies
+    state.price = rand(m.min, m.max);
+    state.target = state.mode === 'change' ? 100 - state.price : state.price;
+    $('custNum').textContent = state.n;
+    const cust = $('customer'); cust.textContent = pick(CUSTOMERS);
+    cust.style.animation = 'none'; void cust.offsetWidth; cust.style.animation = '';
+    $('item').textContent = pick(ITEMS);
+    $('tag').textContent = fmt(state.price);
+    if(state.mode === 'change'){
+      $('bubble').innerHTML = 'Here is <b>$1.00</b>. My change, please!';
+      $('goal').innerHTML = '$1.00 − ' + fmt(state.price) + ' = ? &nbsp;Give the change back';
+      $('payBtn').textContent = 'Give change';
+    } else {
+      $('bubble').textContent = pick(["I'd like this, please!","How much is this?","I'll take it!","Can I buy this?"]);
+      $('goal').innerHTML = 'Pay <b>' + fmt(state.price) + '</b>';
+      $('payBtn').textContent = 'Pay!';
+    }
+    renderTray();
+  }
+
+  function check(){
+    if(state.busy) return;
+    audio();
+    const s = sum();
+    if(!state.placed.length){ toast('Tap some coins first!', ''); return }
+    if(s === state.target){
+      state.busy = true;
+      if(state.firstTry){ state.stars++; $('starCount').textContent = state.stars }
+      sYay();
+      toast(pick(CHEERS) + (state.firstTry ? ' ⭐' : ''), 'good');
+      setTimeout(() => state.n >= 10 ? finish() : newCustomer(), 1500);
+    } else {
+      state.firstTry = false; sOops();
+      $('window').classList.remove('shake'); void $('window').offsetWidth; $('window').classList.add('shake');
+      const need = state.mode === 'change' ? 'The change is ' + fmt(state.target) + '.' : 'The price is ' + fmt(state.target) + '.';
+      if(s > state.target) toast('Too much! You have ' + fmt(s) + '. ' + need + ' Take some back.', 'bad');
+      else toast('Not enough yet. You have ' + fmt(s) + '. ' + need, 'bad');
+    }
+  }
+
+  let toastTimer;
+  function toast(msg, kind){
+    document.querySelectorAll('.toast').forEach(t=>t.remove());
+    const t = document.createElement('div'); t.className = 'toast ' + kind; t.textContent = msg; t.setAttribute('role','status');
+    document.body.append(t); clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=>t.remove(), kind==='bad' ? 3200 : 1500);
+  }
+
+  function show(id){ ['menu','game','done'].forEach(s => $(s).hidden = s !== id); window.scrollTo(0,0) }
+
+  function start(mode){
+    audio();
+    state = {mode, n:0, stars:0, placed:[], firstTry:true, busy:false};
+    $('levelPill').textContent = MODES[mode].name;
+    $('starCount').textContent = 0;
+    buildPurse(); show('game'); newCustomer();
+  }
+
+  function finish(){
+    store.add(state.stars);
+    $('allStars').textContent = store.get();
+    $('doneStars').textContent = state.stars;
+    $('starRow').textContent = '⭐'.repeat(state.stars) + '☆'.repeat(10-state.stars);
+    show('done');
+  }
+
+  document.querySelectorAll('.mode').forEach(b => b.addEventListener('click', () => start(b.dataset.mode)));
+  $('payBtn').addEventListener('click', check);
+  $('clearBtn').addEventListener('click', () => { if(state.busy) return; state.placed=[]; sBack(); renderTray() });
+  $('homeBtn').addEventListener('click', () => { $('allStars').textContent = store.get(); show('menu') });
+  $('againBtn').addEventListener('click', () => start(state.mode));
+  $('menuBtn2').addEventListener('click', () => show('menu'));
+  $('helper').addEventListener('change', renderTray);
+})();
+</script>
+
+</body>
+</html>
