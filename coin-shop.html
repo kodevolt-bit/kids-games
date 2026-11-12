@@ -109,6 +109,10 @@ h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance}
   .purse{gap:10px}
 }
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+.hub{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:48px;padding:6px 16px;border-radius:18px;background:#ffffff;color:#2a2440;font-weight:700;font-size:19px;line-height:1;text-decoration:none;box-shadow:0 5px 0 rgba(0,0,0,.25);-webkit-touch-callout:none}
+.hub:active{transform:translateY(4px);box-shadow:0 1px 0 rgba(0,0,0,.25)}
+.hub.big{min-height:58px;padding:12px 22px;font-size:22px}
+@media (max-width:600px){.hub .hl{display:none}}
 </style>
 
 </head>
@@ -148,6 +152,7 @@ h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance}
   <section id="game" hidden>
     <div class="wrap" style="min-height:0">
       <div class="bar">
+        <a class="hub" href="index.html" aria-label="All games">🏠<span class="hl"> All games</span></a>
         <button class="btn small" id="homeBtn">◀ Menu</button>
         <div class="pill" id="levelPill">Easy</div>
         <div class="spacer"></div>
@@ -189,10 +194,184 @@ h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance}
     <div class="actions" style="justify-content:center;flex-wrap:wrap">
       <button class="btn go" id="againBtn">Play again</button>
       <button class="btn" id="menuBtn2">Pick another game</button>
+    <a class="hub big" href="index.html">🏠 All games</a>
     </div>
   </section>
 </div>
 
+<script>
+/* Game Time music: small built-in tunes, one per game, plus a shared sound on/off button. No audio files needed. */
+window.GT = (() => {
+  const KEY = 'gametime-sound';
+  let on = true;
+  try { on = localStorage.getItem(KEY) !== 'off' } catch(e){}
+  let ctx = null, master = null, musicBus = null, fxBus = null, noiseBuf = null;
+  let song = null, loop = null, step = 0, nextT = 0, timer = null, started = false, ducked = false, btn = null;
+
+  function ctxGet(){
+    if(!ctx){
+      try { if(navigator.audioSession) navigator.audioSession.type = 'playback' } catch(e){}
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+      master = ctx.createGain(); master.gain.value = on ? 1 : 0; master.connect(ctx.destination);
+      musicBus = ctx.createGain(); musicBus.gain.value = .55; musicBus.connect(master);
+      fxBus = ctx.createGain(); fxBus.gain.value = 1; fxBus.connect(master);
+      noiseBuf = ctx.createBuffer(1, ctx.sampleRate * .5, ctx.sampleRate);
+      const d = noiseBuf.getChannelData(0); for(let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    }
+    if(ctx.state === 'suspended') ctx.resume();
+    return ctx;
+  }
+  const fx = () => { ctxGet(); return fxBus };
+
+  // ---------- songs ----------
+  const SCALES = { major:[0,2,4,5,7,9,11], minor:[0,2,3,5,7,8,10] };
+  const PENTA  = { major:[0,2,4,7,9],      minor:[0,3,5,7,10] };
+  const SONGS = {
+    coin:    {bpm:112, key:60, scale:'major', prog:[0,3,4,0,0,3,4,4], lead:'pluck',   bass:'bounce', arp:false, perc:'shaker', seed:3},
+    monster: {bpm:100, key:57, scale:'minor', prog:[0,5,2,6,0,5,3,4], lead:'pluck',   bass:'bounce', arp:false, perc:'tick',   seed:7},
+    word:    {bpm:90,  key:62, scale:'major', prog:[0,4,5,3,0,4,3,4], lead:'soft',    bass:'soft',   arp:true,  perc:null,     seed:11},
+    habitat: {bpm:108, key:65, scale:'major', prog:[0,3,0,4,0,3,4,0], lead:'marimba', bass:'bounce', arp:false, perc:'shaker', seed:5},
+    story:   {bpm:74,  key:67, scale:'major', prog:[0,5,3,4,0,5,3,4], lead:'bell',    bass:'soft',   arp:true,  perc:null,     seed:2},
+    pattern: {bpm:120, key:60, scale:'major', prog:[0,0,3,4,0,0,4,0], lead:'pluck',   bass:'walk',   arp:false, perc:'train',  seed:9},
+    paint:   {bpm:82,  key:64, scale:'major', prog:[0,3,5,4,0,3,4,4], lead:'soft',    bass:'soft',   arp:true,  perc:null,     seed:4},
+    bubble:  {bpm:104, key:65, scale:'major', prog:[0,4,3,4,0,4,3,0], lead:'bell',    bass:'bounce', arp:false, perc:'shaker', seed:8}
+  };
+
+  function rng(seed){ return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296 } }
+
+  function build(s){
+    const R = rng(s.seed), sc = SCALES[s.scale], pn = PENTA[s.scale];
+    const deg = d => s.key + sc[((d % 7) + 7) % 7] + 12 * Math.floor(d / 7);
+    const chord = d => [deg(d), deg(d + 2), deg(d + 4)];
+    const penta = []; for(let o = 0; o < 3; o++) pn.forEach(p => penta.push(s.key + p + 12 * o));
+    const lo = s.key + 7, hi = s.key + 24;
+    const RHY = [[1,0,1,0,1,0,1,1],[1,0,1,1,1,0,1,0],[1,0,0,1,1,0,1,0],[1,1,1,0,1,0,0,0],[1,0,1,0,1,1,1,0]];
+    const mel = new Array(64).fill(null), bass = new Array(64).fill(null), arp = new Array(64).fill(null);
+    let cur = s.key + 12;
+    function bar(b, cadence){
+      const ch = chord(s.prog[b]).map(n => n + 12), rh = RHY[Math.floor(R() * RHY.length)];
+      for(let i = 0; i < 8; i++){
+        const k = b * 8 + i;
+        if(cadence && i >= 4){ if(i === 4) mel[k] = s.key + 12; continue }
+        if(!rh[i]) continue;
+        if(i === 0 || i === 4){
+          const opts = ch.concat(ch.map(n => n + 12)).filter(n => n >= lo && n <= hi);
+          opts.sort((a, b2) => Math.abs(a - cur) - Math.abs(b2 - cur));
+          cur = opts[Math.min(opts.length - 1, Math.floor(R() * 2))];
+        } else {
+          let idx = penta.findIndex(n => n >= cur); if(idx < 0) idx = penta.length - 1;
+          idx += R() < .5 ? -1 : 1; if(R() < .25) idx += R() < .5 ? -1 : 1;
+          cur = Math.max(lo, Math.min(hi, penta[Math.max(0, Math.min(penta.length - 1, idx))]));
+        }
+        mel[k] = cur;
+      }
+    }
+    for(let b = 0; b < 4; b++) bar(b, false);
+    for(let k = 0; k < 24; k++) mel[32 + k] = mel[k];        // repeat the phrase
+    bar(7, true);                                             // new ending that lands home
+    for(let b = 0; b < 8; b++){
+      const r = deg(s.prog[b]) - 12, ch = chord(s.prog[b]);
+      const k = b * 8;
+      if(s.bass === 'soft') bass[k] = r;
+      else if(s.bass === 'walk'){ bass[k] = r; bass[k+2] = r + (ch[1]-ch[0]); bass[k+4] = r + 7; bass[k+6] = r + 12 }
+      else { bass[k] = r; bass[k+4] = r + 7 }
+      if(s.arp) for(let i = 0; i < 8; i++) arp[k + i] = [ch[0], ch[1], ch[2], ch[1]][i % 4];
+    }
+    return {mel, bass, arp};
+  }
+
+  // ---------- voices ----------
+  const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
+  function osc(type, f, t, dur, vol, attack, partials){
+    const g = ctx.createGain(); g.connect(musicBus);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + attack);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    (partials || [[1, 1]]).forEach(([ratio, amp]) => {
+      const o = ctx.createOscillator(); o.type = type; o.frequency.value = f * ratio;
+      if(amp === 1) o.connect(g); else { const pg = ctx.createGain(); pg.gain.value = amp; o.connect(pg).connect(g) }
+      o.start(t); o.stop(t + dur + .05);
+    });
+  }
+  function lead(kind, m, t, len){
+    const f = mtof(m);
+    if(kind === 'bell')    osc('sine', f, t, 1.1, .11, .005, [[1,1],[2,.3],[3,.08]]);
+    else if(kind === 'marimba') osc('sine', f, t, .4, .14, .004, [[1,1],[4,.2]]);
+    else if(kind === 'soft') osc('sine', f, t, Math.max(.35, len * 1.1), .09, .05);
+    else osc('triangle', f, t, Math.min(.5, len * 1.4), .1, .005);
+  }
+  function perc(kind, i, t){
+    let vol = 0, len = .05, hp = 6000;
+    if(kind === 'shaker'){ vol = (i % 2 ? .025 : .04) }
+    else if(kind === 'tick'){ if(i === 2 || i === 6){ vol = .05 } }
+    else if(kind === 'train'){ vol = (i % 4 === 0) ? .07 : .035; len = .08; hp = 2500 }
+    if(!vol) return;
+    const src = ctx.createBufferSource(); src.buffer = noiseBuf;
+    const f = ctx.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = hp;
+    const g = ctx.createGain(); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+    src.connect(f).connect(g).connect(musicBus); src.start(t); src.stop(t + len + .02);
+  }
+  function playStep(k, t, spb){
+    if(loop.mel[k] != null){ let n = 1; while(n < 4 && loop.mel[(k + n) % 64] == null) n++; lead(song.lead, loop.mel[k], t, n * spb) }
+    if(loop.bass[k] != null) osc(song.bass === 'soft' ? 'sine' : 'triangle', mtof(loop.bass[k]), t, song.bass === 'soft' ? spb * 7 : spb * 1.8, song.bass === 'soft' ? .1 : .13, .01);
+    if(loop.arp[k] != null) osc('sine', mtof(loop.arp[k]), t, spb * 1.6, .035, .01);
+    if(song.perc) perc(song.perc, k % 8, t);
+  }
+
+  // ---------- transport ----------
+  function tick(){
+    if(!ctx || !on || document.hidden) return;
+    const spb = 60 / song.bpm / 2;
+    if(nextT < ctx.currentTime) nextT = ctx.currentTime + .05;
+    while(nextT < ctx.currentTime + .3){ playStep(step, nextT, spb); nextT += spb; step = (step + 1) % 64 }
+    const speaking = !!(window.speechSynthesis && speechSynthesis.speaking);
+    if(speaking !== ducked){ ducked = speaking; musicBus.gain.setTargetAtTime(speaking ? .12 : .55, ctx.currentTime, .15) }
+  }
+  function startMusic(){
+    if(!song || started) return;
+    ctxGet(); started = true; step = 0; nextT = ctx.currentTime + .1;
+    timer = setInterval(tick, 60);
+  }
+
+  function setOn(v){
+    on = v;
+    try { localStorage.setItem(KEY, v ? 'on' : 'off') } catch(e){}
+    if(v){ ctxGet(); master.gain.setTargetAtTime(1, ctx.currentTime, .05); startMusic(); nextT = ctx.currentTime + .1 }
+    else if(ctx){ master.gain.setTargetAtTime(0, ctx.currentTime, .05) }
+    paint();
+  }
+  function paint(){
+    if(!btn) return;
+    btn.textContent = on ? '🎵' : '🔇';
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    btn.setAttribute('aria-label', on ? 'Sound is on. Tap to turn it off.' : 'Sound is off. Tap to turn it on.');
+    btn.classList.toggle('off', !on);
+  }
+
+  function init(name){
+    song = SONGS[name] || SONGS.coin; loop = build(song);
+    const st = document.createElement('style');
+    st.textContent = '.gt-snd{position:fixed;z-index:60;right:calc(env(safe-area-inset-right,0px) + 14px);bottom:calc(env(safe-area-inset-bottom,0px) + 14px);width:60px;height:60px;border-radius:50%;border:0;background:#ffffff;color:#2a2440;font-size:30px;line-height:1;box-shadow:0 5px 0 rgba(0,0,0,.28),0 0 0 3px rgba(42,36,64,.15);cursor:pointer;touch-action:manipulation;display:flex;align-items:center;justify-content:center;padding:0}' +
+      '.gt-snd:active{transform:translateY(4px);box-shadow:0 1px 0 rgba(0,0,0,.28)}.gt-snd.off{background:#e4e1ec}.gt-snd:focus-visible{outline:4px solid #2a2440;outline-offset:3px}';
+    document.head.append(st);
+    btn = document.createElement('button'); btn.className = 'gt-snd'; btn.type = 'button';
+    btn.addEventListener('click', ev => { ev.stopPropagation(); setOn(!on) });
+    document.body.append(btn); paint();
+    // browsers only allow sound after a tap, so start on the first one
+    const kick = ev => {
+      if(ev && ev.target === btn) return;
+      if(on){ ctxGet(); startMusic() }
+      if(ctx && ctx.state === 'running' && (started || !on)) ['pointerdown','touchend','click','keydown'].forEach(e => document.removeEventListener(e, kick, true));
+    };
+    ['pointerdown','touchend','click','keydown'].forEach(e => document.addEventListener(e, kick, true));
+    document.addEventListener('visibilitychange', () => { if(!ctx) return; if(document.hidden) ctx.suspend(); else if(on){ ctx.resume(); nextT = ctx.currentTime + .1 } });
+  }
+
+  return { init, ctx: ctxGet, fx, isOn: () => on, setOn };
+})();
+
+GT.init('coin');
+</script>
 <script>
 (() => {
   const $ = id => document.getElementById(id);
@@ -222,13 +401,13 @@ h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance}
 
   // sound
   let ac = null;
-  function audio(){ try { ac = ac || new (window.AudioContext||window.webkitAudioContext)(); if (ac.state==='suspended') ac.resume(); } catch(e){} }
+  function audio(){ try { ac = ac || GT.ctx(); if (ac.state==='suspended') ac.resume(); } catch(e){} }
   function tone(f, t=0.12, type='sine', when=0, vol=0.18){
     if(!ac) return;
     const o = ac.createOscillator(), g = ac.createGain(), s = ac.currentTime + when;
     o.type = type; o.frequency.setValueAtTime(f, s);
     g.gain.setValueAtTime(vol, s); g.gain.exponentialRampToValueAtTime(0.001, s + t);
-    o.connect(g).connect(ac.destination); o.start(s); o.stop(s + t + 0.02);
+    o.connect(g).connect(GT.fx()); o.start(s); o.stop(s + t + 0.02);
   }
   const sClink = () => { tone(1900,.07,'triangle'); tone(2600,.09,'triangle',.04,.1) };
   const sBack = () => tone(700,.08,'triangle');
